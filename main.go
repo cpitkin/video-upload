@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -43,14 +44,14 @@ func main() {
 
 	for _, dir := range dirs {
 		file := dir + "/.keep"
-		localFile := os.Getenv("PWD") + "/.keep"
-		err = ioutil.WriteFile(localFile, []byte("Placeholder"), 0644)
+		localFile := filepath.Join(os.Getenv("PWD"), ".keep")
+		err = ioutil.WriteFile(localFile, []byte("Placeholder"), 0755)
 		if err != nil {
 			log.Fatalln(err)
 		}
 		_, err := minioClient.FPutObject("complete", file, localFile, minio.PutObjectOptions{})
 		if err != nil {
-			log.Fatalln(err)
+			log.Fatalf("Minio: %s", err)
 		}
 		log.Printf("Successfully added .keep to complete bucket directories.")
 		os.Remove(localFile)
@@ -64,7 +65,7 @@ func main() {
 		if err == nil && exists {
 			log.Printf("We already own %s\n", "transcode")
 		} else {
-			log.Fatalln(err)
+			log.Fatalf("Minio: %s", err)
 		}
 	} else {
 		log.Printf("Successfully created %s\n", "transcode")
@@ -82,7 +83,7 @@ func main() {
 	// Add notifications to the transcode bucket
 	err = minioClient.SetBucketNotification("transcode", bucketNotification)
 	if err != nil {
-		log.Fatalln("Error: " + err.Error())
+		log.Fatalf("Minio: %s", err)
 	}
 	log.Println("Successfully added bucket notification")
 
@@ -100,7 +101,7 @@ func main() {
 		// Upload each file to the trasncode bucket
 		for _, f := range files {
 
-			filePath := dir + "/" + f.Name()
+			filePath := filepath.Join(dir, f.Name())
 			objectName := bucketDirPrefix + "/" + f.Name()
 
 			s.Suffix = " Uploading ==> " + f.Name()
@@ -109,7 +110,7 @@ func main() {
 			// Upload the file to the bucket
 			_, err := minioClient.FPutObject("transcode", objectName, filePath, minio.PutObjectOptions{})
 			if err != nil {
-				log.Fatalln(err)
+				log.Fatalf("Minio: %s", err)
 			}
 
 			s.FinalMSG = "Successfully uploaded ==> " + fmt.Sprintf("%s\n", f.Name())
